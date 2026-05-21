@@ -5,6 +5,14 @@ const gymSchema = new Schema({
         required: true
         , type: String
     },
+    logo: {
+        type: String,
+        default: null
+    },
+    coverImage: {
+        type: String,
+        default: null
+    },
     owner: {
         required: true
         , type: Schema.Types.ObjectId
@@ -42,33 +50,22 @@ const gymSchema = new Schema({
             day: String,
             open: String,
             close: String,
-            type: String
+            type: { type: String }
         }]
     },
-    members: {
-        required: false
-        , type: [Schema.Types.ObjectId]
-        , default: []
-    },
-    plans: {
-        required: false
-        , type: [{
-            name: String,
-            price: Number,
-            duration: String
-        }]
-        , default: []
-    },
-    createdAt: {
-        required: true
-        , type: Date
-        , default: Date.now()
-    },
-    updatedAt: {
-        required: true
-        , type: Date
-        , default: Date.now()
-    }
-})
+    plans: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Plan'
+    }],
+    members: [{
+        type: Schema.Types.ObjectId,
+        ref: 'Membership'
+    }]
+},
+
+    {
+        timestamps: true,
+    })
+
 
 module.exports = model("Gym", gymSchema);

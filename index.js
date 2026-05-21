@@ -46,14 +46,8 @@ app.post('/login', async (req, res) => {
 
         return res.status(200).json({
             token,
-            user: {
-                id: user._id,
-                email: user.email,
-                user_meFtadata: {
-                    full_name: user.name,
-                    phone: user.phone,
-                }
-            }, role:user.role
+            user,
+            role: user.role
         });
     }
     catch (error) {

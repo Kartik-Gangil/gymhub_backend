@@ -17,44 +17,19 @@ const userSchema = new Schema({
         required: true
         , type: String
     },
-    gymName: {
-        required: false
-        , type: String
-        , default: ""
-    },
     role: {
         enum: ["admin", "member", "owner"]
         , default: "member"
         , type: String
     },
-    // plan: {
-    //     required: true
-    //     , type: String
-    // },
-    // duration: {
-    //     required: true
-    //     , type: Number
-    // },
-    // startDate: {
-    //     required: true
-    //     , type: Date
-    // },
-    // endDate: {
-    //     required: true
-    //     , type: Date,
-    //     default: Date.now()
-    // },
-    createdAt: {
-        required: true
-        , type: Date
-        , default: Date.now()
-    },
-    updatedAt: {
-        required: true
-        , type: Date
-        , default: Date.now()
-    }
-
+    membership: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: 'Membership'
+        }
+    ]
+}, {
+    timestamps: true
 })
 
 module.exports = model('User', userSchema);
