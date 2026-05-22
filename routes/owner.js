@@ -72,7 +72,7 @@ router.get('/fetchGym/:id', async (req, res) => {
 
         const { id } = req.params;
 
-        if (!id) return res.status(400).json({ messgae: "something went wronge" });
+        if (!id) return res.status(400).json({ message: "something went wrong" });
 
         const gym = await Gym.find({
             owner: id
@@ -122,15 +122,21 @@ router.get("/get-gym-detail/:id", async (req, res) => {
             .populate("user")  // This pulls full user object from the image's 'user' field
             .populate("plan") // This pulls full plan object from the image's 'plan' field
             .limit(10);
-
+        const totalRevenue = activeMemberships.reduce((sum, membership) => {
+            if (membership.plan && membership.plan.price) {
+                return sum + membership.plan.price;
+            }
+            return sum;
+        }, 0);
         // 3. Extract just the user data to create your clean members list
-        const membersList = activeMemberships.map(memberDoc => memberDoc.user);
+        const membersList = activeMemberships.map(memberDoc => memberDoc);
 
         // 4. Return everything together
         return res.status(200).json({
             data: {
                 ...gymDetails.toObject(),
-                members: membersList // Injected straight into your expected layout!
+                members: membersList, // Injected straight into your expected layout!
+                totalRevenue: totalRevenue
             }
         });
 
@@ -173,7 +179,7 @@ router.post("/addPlan/:id", async (req, res) => {
 
 
         const newPlan = await Plan.create({
-            gym: id, name, price, days
+            gym: id, name, price: parseInt(price), days: parseInt(days)
         })
 
         await Gym.findByIdAndUpdate(
@@ -185,7 +191,7 @@ router.post("/addPlan/:id", async (req, res) => {
             }
         );
 
-        return res.status(200).json({ messgae: "success" })
+        return res.status(200).json({ message: "success", id: newPlan._id });
 
 
 
@@ -213,8 +219,12 @@ router.delete("/delete-plan/:gymId/:planId", async (req, res) => {
                 $pull: {
                     plans: planId
                 }
-            }
+            },
+            { new: true }
         );
+        await Membership.deleteMany({
+            plan: planId
+        });
         return res.status(200).json({
             message: "Plan deleted successfully"
         });
