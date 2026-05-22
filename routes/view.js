@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
                 state: gym.state,
                 logo: gym.logo || "",
                 cover: gym.coverImage || "",
+                members: gym.members.length || 0,
             }
         })
         return res.status(200).json({ gyms: GYMS });
