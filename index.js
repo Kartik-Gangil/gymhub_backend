@@ -313,7 +313,7 @@ app.post('/signup', async (req, res) => {
 app.get("/google", (req, res) => {
     const uri = GoogleLogin(
         googleClientId,
-        "http://localhost:8000/api/auth/google/callback"
+        "https://n8n.creovavteio.in/api/auth/google/callback"
     );
     return res.status(302).redirect(uri);
 });
@@ -325,7 +325,7 @@ app.get("/api/auth/google/callback", async (req, res) => {
             req.query.code,
             googleClientId,
             googleClientSecret,
-            "http://localhost:8000/api/auth/google/callback"
+            "https://n8n.creovavteio.in/api/auth/google/callback"
         );
 
         const email = data.user.email;
