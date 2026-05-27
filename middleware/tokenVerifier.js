@@ -3,7 +3,7 @@ const { VerifyToken } = require('@kartikgangil/watchman_js');
 // dotenv.config();
 // const secret = process.env.JWT_SECRET
 
-function tokenVerifier(req, res, next) {
+async function tokenVerifier(req, res, next) {
     const authHeader = req.headers.authorization || req.headers.Authorization;
     const token = authHeader && authHeader.startsWith('Bearer ')
         ? authHeader.slice(7)
