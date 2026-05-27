@@ -123,8 +123,8 @@ router.get("/get-gym-detail/:id", async (req, res) => {
             .populate("plan") // This pulls full plan object from the image's 'plan' field
             .limit(10);
         const totalRevenue = activeMemberships.reduce((sum, membership) => {
-            if (membership.plan && membership.plan.price) {
-                return sum + membership.plan.price;
+            if (membership.status === "active" && membership.plan && membership.plan.price) {
+                sum += membership.plan.price;
             }
             return sum;
         }, 0);
@@ -238,13 +238,19 @@ router.delete("/delete-plan/:gymId/:planId", async (req, res) => {
     }
 });
 
-router.post("/update-plan/:planId", async (req, res) => {
+router.put("/update-plan/:planId", async (req, res) => {
     try {
         const { planId } = req.params;
         const { name, price, days } = req.body;
-        const plan = await Plan.findByIdAndUpdate(planId, { name, price, days }, { new: true, runValidators: true });
-        if (!plan) return res.status(404).json({ message: "Plan not found" })
-        return res.status(200).json(plan);
+
+        if (!planId) return res.status(400).json({ message: "Plan ID is required" });
+        if (!name && !price && !days) return res.status(400).json({ message: "At least one field is required to update" });
+
+        const plan = await Plan.findByIdAndUpdate(planId, { name, price: parseInt(price, 10), days: parseInt(days, 10) }, { new: true });
+        
+        if (!plan) return res.status(404).json({ message: "Plan not found" });
+        
+        return res.status(200).json({ message: "Plan updated successfully", plan });
     } catch (error) {
         console.log(error);
         return res.status(500).json({
@@ -374,5 +380,8 @@ router.put("/updateGym/:gymId", upload.fields([{ name: "image" }, { name: "logo"
         return res.status(500).json({ message: "Internal server error" });
     }
 })
+
+
+
 
 module.exports = router;

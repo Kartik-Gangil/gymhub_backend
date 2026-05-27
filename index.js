@@ -1,12 +1,16 @@
 const express = require('express');
 const User = require('./model/user');
 const cors = require('cors')
-const { hashPassword, GenToken, comparePassword } = require('@kartikgangil/watchman_js');
+const { hashPassword, GenToken, comparePassword, GoogleLogin, GoogleCallback } = require('@kartikgangil/watchman_js');
 const { config } = require('dotenv');
+const { sendEmail } = require('./utils/emailService')
+const { generateOTP } = require('./utils/generateOTP')
 const connectDB = require('./controller/db');
 config();
 
 const app = express();
+// use in the signup route to verify email via OTP
+const otpStore = new Map();
 
 app.use(express.json());
 app.use(cors('*'));
@@ -14,6 +18,8 @@ app.use(cors('*'));
 const PORT = process.env.PORT || 8000;
 
 const secret = process.env.JWT_SECRET;
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
 connectDB()
 
@@ -30,7 +36,8 @@ app.post('/login', async (req, res) => {
         if (!user)
             return res.status(404).json({ message: "user not found" });
 
-
+        if (!user.password)
+            return res.status(401).json({ message: "Invalid password" });
 
         if (!comparePassword(password, user.password))
             return res.status(401).json({ message: "Invalid password" });
@@ -56,39 +63,234 @@ app.post('/login', async (req, res) => {
     }
 })
 
-
+const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 app.post('/signup', async (req, res) => {
     try {
-        const { name, email, phone, password, role } = req.body;
-        if (!name || !email || !phone || !password || !role)
-            return res.status(400).json({ message: "All fields are required" })
+        const { name, email, phone, password, role, otp } = req.body;
+        if (!email)
+            return res.status(400).json({ message: "Email is required" });
 
         const user = await User.findOne({ email });
-
         if (user)
-            return res.status(400).json({ message: "User already exists" })
+            return res.status(400).json({ message: "User already exists" });
 
-        const hashedPass = await hashPassword(password);
+        const stored = otpStore.get(email);
+
+        if (!otp) {
+            if (!name || !phone || !password || !role)
+                return res.status(400).json({ message: "All fields are required to request OTP" });
+
+            const generatedOtp = generateOTP();
+            otpStore.set(email, {
+                otp: generatedOtp,
+                expiresAt: Date.now() + OTP_EXPIRY_MS,
+                payload: { name, email, phone, password, role }
+            });
+            const emailSent = await sendEmail(email, "OTP for GYMHUB NEW ACCOUNT CREATION ", `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GymHub OTP Verification</title>
+</head>
+
+<body style="
+  margin:0;
+  padding:0;
+  background-color:#0f172a;
+  font-family:Arial, sans-serif;
+">
+
+  <table
+    width="100%"
+    border="0"
+    cellspacing="0"
+    cellpadding="0"
+    style="padding:40px 20px;"
+  >
+    <tr>
+      <td align="center">
+
+        <table
+          width="100%"
+          max-width="500"
+          border="0"
+          cellspacing="0"
+          cellpadding="0"
+          style="
+            background:#111827;
+            border-radius:20px;
+            overflow:hidden;
+            border:1px solid #1f2937;
+          "
+        >
+
+          <!-- HEADER -->
+          <tr>
+            <td
+              align="center"
+              style="
+                padding:40px 20px 20px;
+              "
+            >
+
+              <p style="
+                color:#FF6347;
+                font-size:14px;
+                font-weight:700;
+                letter-spacing:2px;
+                margin:0 0 12px;
+                text-transform:uppercase;
+              ">
+                GymHub
+              </p>
+
+              <h1 style="
+                color:#ffffff;
+                margin:0;
+                font-size:28px;
+                font-weight:700;
+                line-height:40px;
+              ">
+                Account Creation<br/>
+                Verification OTP
+              </h1>
+
+              <p style="
+                color:#9ca3af;
+                font-size:15px;
+                margin-top:18px;
+                line-height:24px;
+              ">
+                Use the OTP below to verify your email
+                and complete your GymHub account setup.
+              </p>
+            </td>
+          </tr>
+
+          <!-- OTP BOX -->
+          <tr>
+            <td align="center" style="padding:10px 20px 30px;">
+
+              <div style="
+                display:inline-block;
+                background:#1f2937;
+                color:#ffffff;
+                font-size:36px;
+                font-weight:700;
+                letter-spacing:10px;
+                padding:18px 32px;
+                border-radius:16px;
+                border:1px solid #374151;
+              ">
+                ${generatedOtp}
+              </div>
+
+            </td>
+          </tr>
+
+          <!-- MESSAGE -->
+          <tr>
+            <td
+              align="center"
+              style="
+                padding:0 35px 30px;
+              "
+            >
+              <p style="
+                color:#d1d5db;
+                font-size:15px;
+                line-height:26px;
+                margin:0;
+              ">
+                This OTP will expire in
+                <span style="color:#ffffff;font-weight:700;">
+                  5 minutes
+                </span>.
+              </p>
+
+              <p style="
+                color:#6b7280;
+                font-size:13px;
+                margin-top:20px;
+                line-height:22px;
+              ">
+                If you didn’t request this verification,
+                you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td
+              align="center"
+              style="
+                border-top:1px solid #1f2937;
+                padding:20px;
+              "
+            >
+              <p style="
+                color:#6b7280;
+                font-size:12px;
+                margin:0;
+              ">
+                © 2026 GymHub. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`);
+            if (!emailSent) {
+                otpStore.delete(email);
+                return res.status(500).json({ message: "INVALID EMAIL" });
+            }
+            return res.status(200).json({
+                message: "OTP sent to email. Verify OTP to complete signup.",
+                email
+            });
+        }
+
+        if (!stored)
+            return res.status(400).json({ message: "OTP not requested or expired" });
+
+        if (Date.now() > stored.expiresAt) {
+            otpStore.delete(email);
+            return res.status(400).json({ message: "OTP expired" });
+        }
+
+        if (stored.otp !== otp)
+            return res.status(400).json({ message: "Invalid OTP" });
+
+        const { name: storedName, phone: storedPhone, password: storedPassword, role: storedRole } = stored.payload;
+        const hashedPass = await hashPassword(storedPassword);
 
         const newUser = new User({
-            username: name,
+            username: storedName,
             email,
-            phone,
+            phone: storedPhone,
             password: hashedPass,
-            role
+            role: storedRole
         })
 
         const NewUser = await newUser.save();
+        otpStore.delete(email);
 
         const token = await GenToken({
-            name, email, phone, role
+            name: storedName, email, phone: storedPhone, role: storedRole
         },
             {
                 expiresIn: '10h'
             },
             secret
         )
-        // console.log({ token })
 
         return res.status(201).json({
             message: "User created successfully", token,
@@ -96,10 +298,10 @@ app.post('/signup', async (req, res) => {
                 id: NewUser._id,
                 email: email,
                 user_metadata: {
-                    full_name: name,
-                    phone: phone,
+                    full_name: storedName,
+                    phone: storedPhone,
                 }
-            }, role
+            }, role: storedRole
         })
 
     } catch (error) {
@@ -107,6 +309,80 @@ app.post('/signup', async (req, res) => {
         return res.status(500).json({ message: "Internal server error" })
     }
 })
+// google auth routes
+app.get("/google", (req, res) => {
+    const uri = GoogleLogin(
+        googleClientId,
+        "http://localhost:8000/api/auth/google/callback"
+    );
+    return res.status(302).redirect(uri);
+});
+
+
+app.get("/api/auth/google/callback", async (req, res) => {
+    try {
+        const data = await GoogleCallback(
+            req.query.code,
+            googleClientId,
+            googleClientSecret,
+            "http://localhost:8000/api/auth/google/callback"
+        );
+
+        const email = data.user.email;
+        const user = await User.findOne({ email }).select('-password');
+
+
+        if (user) {
+            const token = await GenToken({
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                role: user.role
+            },
+                {
+                    expiresIn: '10h'
+                },
+                secret
+            )
+
+            return res.status(200).json({
+                message: "User already exists", token, user, role: user.role
+            });
+        }
+
+        const newUser = new User({
+            username: data.user.name,
+            profilePicture: data.user.picture,
+            email: data.user.email
+        })
+        const NewUser = await newUser.save();
+
+        const token = await GenToken({
+            name: data.user.name,
+            email: data.user.email
+        },
+            {
+                expiresIn: '10h'
+            },
+            secret
+        )
+
+        return res.status(201).json({
+            message: "User created successfully", token,
+            user: {
+                id: NewUser._id,
+                email: email,
+                user_metadata: {
+                    full_name: data.user.name
+                }
+            }, role: "member"
+        })
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({ message: "Internal server error" })
+    }
+});
+
 
 app.use('/view', require('./routes/view'));
 app.use('/member', require('./routes/member'));

@@ -5,17 +5,19 @@ const userSchema = new Schema({
         required: true
         , type: String
     },
+    profilePicture: {
+        type: String,
+        default: null
+    },
     email: {
         required: true
         , type: String
     },
     phone: {
-        required: true
-        , type: String
+        type: String
     },
     password: {
-        required: true
-        , type: String
+        type: String
     },
     role: {
         enum: ["admin", "member", "owner"]
