@@ -26,67 +26,67 @@ connectDB()
 
 
 app.post('/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        if (!email || !password)
-            return res.status(400).json({ message: "All fields are required" });
+  try {
+    const { email, password } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ message: "All fields are required" });
 
-        const user = await User.findOne({ email });
+    const user = await User.findOne({ email });
 
-        if (!user)
-            return res.status(404).json({ message: "user not found" });
+    if (!user)
+      return res.status(404).json({ message: "user not found" });
 
-        if (!user.password)
-            return res.status(401).json({ message: "Invalid password" });
+    if (!user.password)
+      return res.status(401).json({ message: "Invalid password" });
 
-        if (!comparePassword(password, user.password))
-            return res.status(401).json({ message: "Invalid password" });
+    if (!comparePassword(password, user.password))
+      return res.status(401).json({ message: "Invalid password" });
 
-        const token = await GenToken({
-            user
-        },
-            {
-                expiresIn: '10h'
-            },
-            secret
-        )
+    const token = await GenToken({
+      user
+    },
+      {
+        expiresIn: '10h'
+      },
+      secret
+    )
 
-        return res.status(200).json({
-            token,
-            user,
-            role: user.role
-        });
-    }
-    catch (error) {
-        console.log(error)
-        return res.status(500).json({ message: "Internal server error" });
-    }
+    return res.status(200).json({
+      token,
+      user,
+      role: user.role
+    });
+  }
+  catch (error) {
+    console.log(error)
+    return res.status(500).json({ message: "Internal server error" });
+  }
 })
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 app.post('/signup', async (req, res) => {
-    try {
-        const { name, email, phone, password, role, otp } = req.body;
-        if (!email)
-            return res.status(400).json({ message: "Email is required" });
+  try {
+    const { name, email, phone, password, role, otp } = req.body;
+    if (!email)
+      return res.status(400).json({ message: "Email is required" });
 
-        const user = await User.findOne({ email });
-        if (user)
-            return res.status(400).json({ message: "User already exists" });
+    const user = await User.findOne({ email });
+    if (user)
+      return res.status(400).json({ message: "User already exists" });
 
-        const stored = otpStore.get(email);
+    const stored = otpStore.get(email);
 
-        if (!otp) {
-            if (!name || !phone || !password || !role)
-                return res.status(400).json({ message: "All fields are required to request OTP" });
+    if (!otp) {
+      if (!name || !phone || !password || !role)
+        return res.status(400).json({ message: "All fields are required to request OTP" });
 
-            const generatedOtp = generateOTP();
-            otpStore.set(email, {
-                otp: generatedOtp,
-                expiresAt: Date.now() + OTP_EXPIRY_MS,
-                payload: { name, email, phone, password, role }
-            });
-            const emailSent = await sendEmail(email, "OTP for GYMHUB NEW ACCOUNT CREATION ", `<!DOCTYPE html>
+      const generatedOtp = generateOTP();
+      otpStore.set(email, {
+        otp: generatedOtp,
+        expiresAt: Date.now() + OTP_EXPIRY_MS,
+        payload: { name, email, phone, password, role }
+      });
+      const emailSent = await sendEmail(email, "OTP for GYMHUB NEW ACCOUNT CREATION ", `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
@@ -248,139 +248,152 @@ app.post('/signup', async (req, res) => {
 
 </body>
 </html>`);
-            if (!emailSent) {
-                otpStore.delete(email);
-                return res.status(500).json({ message: "INVALID EMAIL" });
-            }
-            return res.status(200).json({
-                message: "OTP sent to email. Verify OTP to complete signup.",
-                email
-            });
-        }
-
-        if (!stored)
-            return res.status(400).json({ message: "OTP not requested or expired" });
-
-        if (Date.now() > stored.expiresAt) {
-            otpStore.delete(email);
-            return res.status(400).json({ message: "OTP expired" });
-        }
-
-        if (stored.otp !== otp)
-            return res.status(400).json({ message: "Invalid OTP" });
-
-        const { name: storedName, phone: storedPhone, password: storedPassword, role: storedRole } = stored.payload;
-        const hashedPass = await hashPassword(storedPassword);
-
-        const newUser = new User({
-            username: storedName,
-            email,
-            phone: storedPhone,
-            password: hashedPass,
-            role: storedRole
-        })
-
-        const NewUser = await newUser.save();
+      if (!emailSent) {
         otpStore.delete(email);
-
-        const token = await GenToken({
-            name: storedName, email, phone: storedPhone, role: storedRole
-        },
-            {
-                expiresIn: '10h'
-            },
-            secret
-        )
-
-        return res.status(201).json({
-            message: "User created successfully", token,
-            user: {
-                id: NewUser._id,
-                email: email,
-                user_metadata: {
-                    full_name: storedName,
-                    phone: storedPhone,
-                }
-            }, role: storedRole
-        })
-
-    } catch (error) {
-        console.log(error)
-        return res.status(500).json({ message: "Internal server error" })
+        return res.status(500).json({ message: "INVALID EMAIL" });
+      }
+      return res.status(200).json({
+        message: "OTP sent to email. Verify OTP to complete signup.",
+        email
+      });
     }
+
+    if (!stored)
+      return res.status(400).json({ message: "OTP not requested or expired" });
+
+    if (Date.now() > stored.expiresAt) {
+      otpStore.delete(email);
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    if (stored.otp !== otp)
+      return res.status(400).json({ message: "Invalid OTP" });
+
+    const { name: storedName, phone: storedPhone, password: storedPassword, role: storedRole } = stored.payload;
+    const hashedPass = await hashPassword(storedPassword);
+
+    const newUser = new User({
+      username: storedName,
+      email,
+      phone: storedPhone,
+      password: hashedPass,
+      role: storedRole
+    })
+
+    const NewUser = await newUser.save();
+    otpStore.delete(email);
+
+    const token = await GenToken({
+      name: storedName, email, phone: storedPhone, role: storedRole
+    },
+      {
+        expiresIn: '10h'
+      },
+      secret
+    )
+
+    return res.status(201).json({
+      message: "User created successfully", token,
+      user: {
+        id: NewUser._id,
+        email: email,
+        user_metadata: {
+          full_name: storedName,
+          phone: storedPhone,
+        }
+      }, role: storedRole
+    })
+
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
 })
 // google auth routes
-app.get("/google", (req, res) => {
-    const uri = GoogleLogin(
-        googleClientId,
-        "https://n8n.creovavteio.in/api/auth/google/callback"
-    );
-    return res.status(302).redirect(uri);
+app.get("/auth/google", (req, res) => {
+  const uri = GoogleLogin(
+    googleClientId,
+    "https://n8n.creovavteio.in/api/auth/google/callback"
+  );
+  return res.status(302).redirect(uri);
 });
 
 
 app.get("/api/auth/google/callback", async (req, res) => {
-    try {
-        const data = await GoogleCallback(
-            req.query.code,
-            googleClientId,
-            googleClientSecret,
-            "https://n8n.creovavteio.in/api/auth/google/callback"
-        );
+  try {
 
-        const email = data.user.email;
-        const user = await User.findOne({ email }).select('-password');
+    const code = req.query.code;
 
-
-        if (user) {
-            const token = await GenToken({
-                name: user.name,
-                email: user.email,
-                phone: user.phone,
-                role: user.role
-            },
-                {
-                    expiresIn: '10h'
-                },
-                secret
-            )
-
-            return res.status(200).json({
-                message: "User already exists", token, user, role: user.role
-            });
-        }
-
-        const newUser = new User({
-            username: data.user.name,
-            profilePicture: data.user.picture,
-            email: data.user.email
-        })
-        const NewUser = await newUser.save();
-
-        const token = await GenToken({
-            name: data.user.name,
-            email: data.user.email
-        },
-            {
-                expiresIn: '10h'
-            },
-            secret
-        )
-
-        return res.status(201).json({
-            message: "User created successfully", token,
-            user: {
-                id: NewUser._id,
-                email: email,
-                user_metadata: {
-                    full_name: data.user.name
-                }
-            }, role: "member"
-        })
-    } catch (error) {
-        console.log(error)
-        return res.status(500).json({ message: "Internal server error" })
+    if (!code) {
+      return res.redirect(
+        "gymhub://auth?error=google_auth_failed"
+      );
     }
+
+    // EXCHANGE CODE FOR GOOGLE USER
+    const data = await GoogleCallback(
+      code,
+      googleClientId,
+      googleClientSecret,
+      "https://n8n.creovavteio.in/api/auth/google/callback"
+    );
+
+    if (!data?.user?.email) {
+      return res.redirect(
+        "gymhub://auth?error=no_email_found"
+      );
+    }
+
+    // FIND USER
+    let user = await User.findOne({
+      email: data.user.email
+    });
+
+    // CREATE USER IF NOT EXISTS
+    if (!user) {
+
+      user = await User.create({
+        username: data.user.name,
+        profilePicture: data.user.picture,
+        email: data.user.email,
+        role: "member"
+      });
+
+    }
+
+    // GENERATE JWT
+    const token = await GenToken(
+      {
+        id: user._id,
+        email: user.email,
+        role: user.role
+      },
+      {
+        expiresIn: "10h"
+      },
+      secret
+    );
+
+    // ONLY SEND TOKEN (RECOMMENDED)
+    const redirectUrl =
+      `gymhub://auth` +
+      `?token=${token}` +
+      `&email=${user.email}` +
+      `&id=${user._id}` +
+      `&username=${encodeURIComponent(user.username || "")}` +
+      `&role=${user.role}` +
+      `&profile=${encodeURIComponent(user.profilePicture || "")}`;
+
+    return res.redirect(redirectUrl);
+
+  } catch (error) {
+
+    console.log("Google Callback Error:", error);
+
+    return res.redirect(
+      "gymhub://auth?error=server_error"
+    );
+  }
 });
 
 
@@ -389,5 +402,5 @@ app.use('/member', require('./routes/member'));
 app.use('/owner', require('./routes/owner'));
 
 app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${ PORT } `);
 });
