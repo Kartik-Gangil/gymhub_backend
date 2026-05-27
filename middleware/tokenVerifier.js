@@ -8,7 +8,13 @@ function tokenVerifier(req, res, next) {
     const token = authHeader && authHeader.startsWith('Bearer ')
         ? authHeader.slice(7)
         : req.body?.token || req.query?.token;
-
+    
+    if (!authHeader) {
+        return res.status(401).json({
+            message: "Unauthorized"
+        });
+    }
+    
     if (!token) {
         return res.status(401).json({ error: 'Token missing' });
     }

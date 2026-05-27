@@ -5,6 +5,7 @@ const { hashPassword, GenToken, comparePassword, GoogleLogin, GoogleCallback } =
 const { config } = require('dotenv');
 const { sendEmail } = require('./utils/emailService')
 const { generateOTP } = require('./utils/generateOTP')
+const tokenVerifier = require('./middleware/tokenVerifier');
 const connectDB = require('./controller/db');
 config();
 
@@ -326,7 +327,7 @@ app.get("/api/auth/google/callback", async (req, res) => {
 
     if (!code) {
       return res.redirect(
-        "gymhub://auth?error=google_auth_failed"
+        "gymhub://login?error=google_auth_failed"
       );
     }
 
@@ -376,13 +377,8 @@ app.get("/api/auth/google/callback", async (req, res) => {
 
     // ONLY SEND TOKEN (RECOMMENDED)
     const redirectUrl =
-      `gymhub://auth` +
-      `?token=${token}` +
-      `&email=${user.email}` +
-      `&id=${user._id}` +
-      `&username=${encodeURIComponent(user.username || "")}` +
-      `&role=${user.role}` +
-      `&profile=${encodeURIComponent(user.profilePicture || "")}`;
+      `gymhub://login` +
+      `?token=${token}`;
 
     return res.redirect(redirectUrl);
 
@@ -391,10 +387,35 @@ app.get("/api/auth/google/callback", async (req, res) => {
     console.log("Google Callback Error:", error);
 
     return res.redirect(
-      "gymhub://auth?error=server_error"
+      "gymhub://login?error=server_error"
     );
   }
 });
+
+
+app.get("/me", tokenVerifier, async (req, res) => {
+
+  try {
+
+    const user = await User.findById(
+      req.user.id
+    ).select("-password");
+
+    return res.status(200).json({
+      user,
+      role: user.role
+    });
+
+  } catch (error) {
+
+    return res.status(500).json({
+      message: "Internal server error"
+    });
+
+  }
+
+});
+
 
 
 app.use('/view', require('./routes/view'));
@@ -402,5 +423,5 @@ app.use('/member', require('./routes/member'));
 app.use('/owner', require('./routes/owner'));
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${ PORT } `);
+  console.log(`Server running on port ${PORT}`);
 });
