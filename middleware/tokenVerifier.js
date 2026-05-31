@@ -21,7 +21,7 @@ async function tokenVerifier(req, res, next) {
 
     try {
         const payload = await VerifyToken(token);
-        console.log(payload)
+        // console.log(payload)
         req.user = payload;
         next();
     } catch (err) {

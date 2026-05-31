@@ -315,6 +315,7 @@ app.get("/auth/google", (req, res) => {
   const uri = GoogleLogin(
     googleClientId,
     "https://n8n.creovavteio.in/api/auth/google/callback"
+    // "https://conjectural-sherman-interatrial.ngrok-free.dev/api/auth/google/callback"
   );
   return res.status(302).redirect(uri);
 });
@@ -337,6 +338,7 @@ app.get("/api/auth/google/callback", async (req, res) => {
       googleClientId,
       googleClientSecret,
       "https://n8n.creovavteio.in/api/auth/google/callback"
+      // "https://conjectural-sherman-interatrial.ngrok-free.dev/api/auth/google/callback"
     );
 
     if (!data?.user?.email) {
@@ -380,6 +382,8 @@ app.get("/api/auth/google/callback", async (req, res) => {
       `gymhub://login` +
       `?token=${token}`;
 
+    // console.log("Redirecting to:", redirectUrl);
+
     return res.redirect(redirectUrl);
 
   } catch (error) {
@@ -398,9 +402,14 @@ app.get("/me", tokenVerifier, async (req, res) => {
   try {
 
     const user = await User.findById(
-      req.user.id
+      req.user.user._id
     ).select("-password");
 
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
     return res.status(200).json({
       user,
       role: user.role
@@ -409,6 +418,7 @@ app.get("/me", tokenVerifier, async (req, res) => {
   } catch (error) {
 
     return res.status(500).json({
+      error,
       message: "Internal server error"
     });
 
