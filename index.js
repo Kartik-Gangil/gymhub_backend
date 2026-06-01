@@ -44,7 +44,9 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ message: "Invalid password" });
 
     const token = await GenToken({
-      user
+      id: user._id,
+      email: user.email,
+      role: user.role
     },
       {
         expiresIn: '10h'
@@ -314,8 +316,8 @@ app.post('/signup', async (req, res) => {
 app.get("/auth/google", (req, res) => {
   const uri = GoogleLogin(
     googleClientId,
-    "https://n8n.creovavteio.in/api/auth/google/callback"
-    // "https://conjectural-sherman-interatrial.ngrok-free.dev/api/auth/google/callback"
+    // "https://n8n.creovavteio.in/api/auth/google/callback"
+    "https://conjectural-sherman-interatrial.ngrok-free.dev/api/auth/google/callback"
   );
   return res.status(302).redirect(uri);
 });
@@ -337,8 +339,9 @@ app.get("/api/auth/google/callback", async (req, res) => {
       code,
       googleClientId,
       googleClientSecret,
-      "https://n8n.creovavteio.in/api/auth/google/callback"
-      // "https://conjectural-sherman-interatrial.ngrok-free.dev/api/auth/google/callback"
+      // "https://n8n.creovavteio.in/api/auth/google/callback"
+      "https://conjectural-sherman-interatrial.ngrok-free.dev/api/auth/google/callback"
+
     );
 
     if (!data?.user?.email) {
@@ -382,8 +385,6 @@ app.get("/api/auth/google/callback", async (req, res) => {
       `gymhub://login` +
       `?token=${token}`;
 
-    // console.log("Redirecting to:", redirectUrl);
-
     return res.redirect(redirectUrl);
 
   } catch (error) {
@@ -400,9 +401,9 @@ app.get("/api/auth/google/callback", async (req, res) => {
 app.get("/me", tokenVerifier, async (req, res) => {
 
   try {
-
+    // console.log("Authenticated user:", req.user);
     const user = await User.findById(
-      req.user.user._id
+      req.user.id
     ).select("-password");
 
     if (!user) {
