@@ -316,8 +316,8 @@ app.post('/signup', async (req, res) => {
 app.get("/auth/google", (req, res) => {
   const uri = GoogleLogin(
     googleClientId,
-    // "https://n8n.creovavteio.in/api/auth/google/callback"
-    "https://conjectural-sherman-interatrial.ngrok-free.dev/api/auth/google/callback"
+    "https://n8n.creovavteio.in/api/auth/google/callback"
+    // "https://conjectural-sherman-interatrial.ngrok-free.dev/api/auth/google/callback"
   );
   return res.status(302).redirect(uri);
 });
@@ -339,8 +339,8 @@ app.get("/api/auth/google/callback", async (req, res) => {
       code,
       googleClientId,
       googleClientSecret,
-      // "https://n8n.creovavteio.in/api/auth/google/callback"
-      "https://conjectural-sherman-interatrial.ngrok-free.dev/api/auth/google/callback"
+      "https://n8n.creovavteio.in/api/auth/google/callback"
+      // "https://conjectural-sherman-interatrial.ngrok-free.dev/api/auth/google/callback"
 
     );
 
